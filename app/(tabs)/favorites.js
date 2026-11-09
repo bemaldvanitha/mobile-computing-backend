@@ -8,39 +8,54 @@ import { usePlaces } from '../../context/PlacesContext';
 import { colors } from '../../theme/colors';
 
 export default function FavoritesScreen() {
-  const { favorites, removeFavorite } = usePlaces();
+  const { favorites, removeFavorite, tripsForPlace } = usePlaces();
   const [pendingRemove, setPendingRemove] = useState(null);
 
   return (
     <View style={styles.screen}>
-      <ResumeBanner />
-      <View style={styles.intro}>
-        <Text style={styles.title}>Shortlist</Text>
-        <Text style={styles.lede}>
-          Places you saved from Explore. This list uses the same shared state, so a save on another
-          screen shows up here immediately.
-        </Text>
-      </View>
       <FlatList
         data={favorites}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View>
+            <ResumeBanner />
+            <View style={styles.intro}>
+              <Text style={styles.title}>Shortlist</Text>
+              <Text style={styles.lede}>
+                Places you have saved. Open one to put it on a dated trip, or start the trip from
+                here.
+              </Text>
+              <Pressable
+                onPress={() => router.push('/trip/new')}
+                style={styles.link}
+                accessibilityRole="button"
+              >
+                <Text style={styles.linkText}>Plan a weekend from this list</Text>
+              </Pressable>
+            </View>
+          </View>
+        }
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Text style={styles.empty}>No trails saved yet.</Text>
+            <Text style={styles.empty}>Nothing saved yet.</Text>
             <Pressable onPress={() => router.push('/')} style={styles.link} accessibilityRole="button">
               <Text style={styles.linkText}>Browse Explore</Text>
             </Pressable>
           </View>
         }
-        renderItem={({ item }) => (
-          <PlaceCard
-            place={item}
-            saved
-            onOpen={() => router.push(`/place/${item.id}`)}
-            onRemove={() => setPendingRemove(item)}
-          />
-        )}
+        renderItem={({ item }) => {
+          const usedIn = tripsForPlace(item.id);
+          return (
+            <PlaceCard
+              place={item}
+              saved
+              note={usedIn.length > 0 ? `Already on ${usedIn[0].name}` : 'Not on a trip yet'}
+              onOpen={() => router.push(`/place/${item.id}`)}
+              onRemove={() => setPendingRemove(item)}
+            />
+          );
+        }}
       />
       <ConfirmModal
         visible={pendingRemove !== null}
@@ -79,13 +94,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   list: {
-    paddingTop: 8,
+    paddingTop: 4,
     paddingBottom: 24,
     flexGrow: 1,
   },
   emptyBox: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 4,
   },
   empty: {
     color: colors.muted,

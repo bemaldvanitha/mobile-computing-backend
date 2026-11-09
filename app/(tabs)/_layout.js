@@ -4,7 +4,7 @@ import { usePlaces } from '../../context/PlacesContext';
 import { colors } from '../../theme/colors';
 
 export default function TabLayout() {
-  const { favoriteIds } = usePlaces();
+  const { favoriteIds, trips } = usePlaces();
 
   return (
     <Tabs
@@ -32,21 +32,22 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="favorites"
+        name="trips"
         options={{
-          title: 'Favorites',
-          tabBarBadge: favoriteIds.length > 0 ? favoriteIds.length : undefined,
+          title: 'Trips',
+          tabBarBadge: trips.length > 0 ? trips.length : undefined,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bookmark-outline" color={color} size={size} />
+            <Ionicons name="calendar-outline" color={color} size={size} />
           ),
         }}
       />
       <Tabs.Screen
-        name="log"
+        name="favorites"
         options={{
-          title: 'Trail log',
+          title: 'Shortlist',
+          tabBarBadge: favoriteIds.length > 0 ? favoriteIds.length : undefined,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" color={color} size={size} />
+            <Ionicons name="bookmark-outline" color={color} size={size} />
           ),
         }}
       />

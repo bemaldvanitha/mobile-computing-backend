@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { ResumeBanner } from '../../components/ResumeBanner';
 import { usePlaces } from '../../context/PlacesContext';
+import { costFor } from '../../data/costs';
 import { findPlace } from '../../data/places';
-import { notifySaved, scheduleTrailReminder } from '../../lib/notifications';
+import { sendReminder } from '../../lib/notifications';
+import { formatLkr, hoursFor } from '../../lib/plan';
 import { colors } from '../../theme/colors';
 
 function Fact({ label, value }) {
@@ -20,14 +22,15 @@ function Fact({ label, value }) {
 export default function PlaceDetailScreen() {
   const { id } = useLocalSearchParams();
   const place = findPlace(id);
-  const { isFavorite, addFavorite, removeFavorite } = usePlaces();
+  const { isFavorite, addFavorite, removeFavorite, trips, addStop, tripsForPlace } = usePlaces();
   const [confirming, setConfirming] = useState(false);
+  const [pickingTrip, setPickingTrip] = useState(false);
   const [notice, setNotice] = useState('');
 
   if (!place) {
     return (
       <View style={styles.missing}>
-        <Text style={styles.missingTitle}>This trail is not in the list.</Text>
+        <Text style={styles.missingTitle}>This place is not in the guide.</Text>
         <Pressable onPress={() => router.back()} accessibilityRole="button">
           <Text style={styles.backLink}>Go back</Text>
         </Pressable>
@@ -36,24 +39,42 @@ export default function PlaceDetailScreen() {
   }
 
   const saved = isFavorite(place.id);
+  const cost = costFor(place.id);
+  const usedIn = tripsForPlace(place.id);
 
   async function save() {
     addFavorite(place.id);
-    const delivered = await notifySaved(place.name);
+    const result = await sendReminder({
+      title: `${place.name} saved`,
+      body: place.fromKelaniya,
+      seconds: 2,
+    });
     setNotice(
-      delivered
-        ? 'Saved. The notification should be on your phone now, and the place is on the Favorites tab.'
-        : 'Saved to Favorites. Allow notifications in Expo Go if you also want the alert.'
+      result.ok
+        ? `${place.name} is on your shortlist, and a short reminder was sent to this phone.`
+        : `${place.name} is on your shortlist. ${result.reason}`
     );
   }
 
   async function remind() {
-    const delivered = await scheduleTrailReminder(place.name);
+    const result = await sendReminder({
+      title: `Leave for ${place.name}`,
+      body: `${place.bestTime} Bus fare from Kelaniya is about ${formatLkr(cost.busLkr)}.`,
+      seconds: 5,
+    });
     setNotice(
-      delivered
-        ? `Reminder set. Leave the app if you want. ${place.name} will notify you in 5 seconds.`
-        : 'Could not schedule the reminder. Use Expo Go on a phone and allow notifications.'
+      result.ok
+        ? `Leave reminder set for ${place.name}. It will arrive on this phone in a few seconds.`
+        : result.reason
     );
+  }
+
+  function addTo(tripId) {
+    addStop(tripId, place.id, 1);
+    addFavorite(place.id);
+    setPickingTrip(false);
+    const trip = trips.find((item) => item.id === tripId);
+    setNotice(`${place.name} was added to ${trip?.name ?? 'the trip'} on day 1.`);
   }
 
   return (
@@ -63,14 +84,24 @@ export default function PlaceDetailScreen() {
       <ResumeBanner />
       <View style={styles.body}>
         <Text style={styles.meta}>
-          {place.region} · {place.category}
+          {place.region} · {place.category} · {hoursFor(place.id)} h from Kelaniya
         </Text>
         <Text style={styles.summary}>{place.summary}</Text>
         <Text style={styles.about}>{place.about}</Text>
         <Fact label="From Kelaniya" value={place.fromKelaniya} />
         <Fact label="When to go" value={place.bestTime} />
-        <Fact label="How long" value={place.visitLength} />
+        <Fact label="How long there" value={place.visitLength} />
         <Fact label="On the day" value={place.tip} />
+        <Fact
+          label="Money, per person"
+          value={`${formatLkr(cost.ticketLkr)} ticket, ${formatLkr(cost.extrasLkr)} typical extra, ${formatLkr(cost.busLkr)} bus. ${cost.extrasLabel}`}
+        />
+        {usedIn.length > 0 ? (
+          <Fact
+            label="Already planned"
+            value={usedIn.map((trip) => trip.name).join(', ')}
+          />
+        ) : null}
         <Text style={styles.credit}>Photograph: {place.photoCredit}</Text>
         {saved ? (
           <Pressable onPress={() => setConfirming(true)} style={styles.secondary} accessibilityRole="button">
@@ -81,8 +112,21 @@ export default function PlaceDetailScreen() {
             <Text style={styles.primaryText}>Save to shortlist</Text>
           </Pressable>
         )}
+        <Pressable
+          onPress={() => {
+            if (trips.length === 0) {
+              router.push(`/trip/new?placeId=${place.id}`);
+              return;
+            }
+            setPickingTrip(true);
+          }}
+          style={styles.primary}
+          accessibilityRole="button"
+        >
+          <Text style={styles.primaryText}>Add to a trip</Text>
+        </Pressable>
         <Pressable onPress={remind} style={styles.secondary} accessibilityRole="button">
-          <Text style={styles.secondaryText}>Remind me in 5 seconds</Text>
+          <Text style={styles.secondaryText}>Send a leave reminder</Text>
         </Pressable>
         <Pressable onPress={() => router.back()} style={styles.textButton} accessibilityRole="button">
           <Text style={styles.backLink}>Back</Text>
@@ -96,9 +140,45 @@ export default function PlaceDetailScreen() {
         onConfirm={() => {
           removeFavorite(place.id);
           setConfirming(false);
-          setNotice(`${place.name} was removed from Favorites.`);
+          setNotice(`${place.name} was removed from the shortlist.`);
         }}
       />
+      <Modal visible={pickingTrip} transparent animationType="slide" onRequestClose={() => setPickingTrip(false)}>
+        <View style={styles.backdrop}>
+          <Pressable style={styles.dismissArea} onPress={() => setPickingTrip(false)} />
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>Add {place.name}</Text>
+            {trips.map((trip) => {
+              const already = trip.stops.some((stop) => stop.placeId === place.id);
+              return (
+                <Pressable
+                  key={trip.id}
+                  onPress={() => {
+                    if (!already) {
+                      addTo(trip.id);
+                    }
+                  }}
+                  style={styles.tripRow}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.tripName}>{trip.name}</Text>
+                  <Text style={styles.tripState}>{already ? 'Already on this trip' : 'Add to day 1'}</Text>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              onPress={() => {
+                setPickingTrip(false);
+                router.push(`/trip/new?placeId=${place.id}`);
+              }}
+              style={styles.secondary}
+              accessibilityRole="button"
+            >
+              <Text style={styles.secondaryText}>Start a new trip instead</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -164,7 +244,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   primary: {
-    marginTop: 16,
+    marginTop: 12,
     backgroundColor: colors.green,
     borderRadius: 12,
     paddingVertical: 14,
@@ -215,5 +295,41 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 18,
     fontWeight: '700',
+  },
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(20, 28, 24, 0.45)',
+  },
+  dismissArea: {
+    flex: 1,
+  },
+  sheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 28,
+  },
+  sheetTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  tripRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  tripName: {
+    color: colors.ink,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  tripState: {
+    color: colors.muted,
+    fontSize: 13,
+    marginTop: 2,
   },
 });

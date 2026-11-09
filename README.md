@@ -12,27 +12,31 @@
 
 ## What this application is
 
-**Ceylon Trails** is a pocket guide to ten Sri Lankan places that are realistic weekend or overnight trips from the University of Kelaniya. The problem it solves is a short, concrete one: travel lists on the internet are long and vague, so it is easy to “save” a place in your head and then forget the season, the travel time, and the one thing you actually needed to know on the day.
+**Ceylon Trails** is a weekend planner for ten Sri Lankan places you can actually reach from the University of Kelaniya. A saved name is not a plan. The app keeps a shortlist, then lets you put places on a dated trip, move them between days, tick off what is booked, and see a per-person cost that changes when the plan changes.
 
-Each trail is hard-coded with a real region, a category, how long it takes to get there from Kelaniya, when to go, how long to allow, and a practical tip. You can filter the list, open a detail screen, save a place onto a shortlist, and get a local notification so the save is not only a change of colour on a button.
+Each place is hard-coded with a region, category, travel time, season, ticket, typical extra, and a bus fare from Kelaniya. Costs live in `data/costs.js`. The trip total in `lib/plan.js` adds tickets and extras, uses the single furthest bus fare, and adds Rs 6,500 a night when the trip is longer than a day.
 
-The shortlist is held in shared React state. Saving Sigiriya on the detail screen makes it appear on the Favorites tab without fetching anything. Leaving the app and coming back is recorded with the React Native `AppState` API, so you can see that the shortlist survived a trip to the background.
+Saving a place, or asking for a leave reminder, schedules a local notification. Returning from the background shows a banner that names the trip you were planning, which is the `AppState` behaviour.
 
 ## Screens
 
-There are four screens.
+There are seven screens.
 
 | Screen | Route | Purpose |
 | --- | --- | --- |
-| Explore | `app/(tabs)/index.js` | Home tab. Shows all ten trails in a `FlatList`, with travel copy and a filter button. Saving a trail from here also fires a local notification. |
-| Favorites | `app/(tabs)/favorites.js` | Second tab. Shows only the trails currently in the shared shortlist. Removing one asks for confirmation in a modal. The tab badge is the shortlist count. |
-| Trail log | `app/(tabs)/log.js` | Third tab. Explains and displays `AppState` resumes (background or inactive, then active). Also has a button that schedules a local notification five seconds ahead. |
-| Trail details | `app/place/[id].js` | Stack screen opened from a card. Full description, the four practical facts, photo credit, save, remove, a five-second reminder, and a Back control. |
+| Explore | `app/(tabs)/index.js` | Search the ten places, filter by category and region, sort by travel time, and save to the shortlist. |
+| Trips | `app/(tabs)/trips.js` | Lists weekends you have created, with dates, places, and the calculated cost. |
+| Shortlist | `app/(tabs)/favorites.js` | Places saved from Explore. Removing one asks for confirmation. The tab badge is the count. |
+| Place | `app/place/[id].js` | Full description, money, save, add to an existing trip or start a new one, and a leave reminder. |
+| New trip | `app/trip/new.js` | Name, a real upcoming Saturday, length of 1–3 days, and a note. A place can be attached on day 1. |
+| Trip plan | `app/trip/[id].js` | Move places between days, edit the length, tick the leaving checklist, edit the note, see the budget, send a reminder, or delete the trip. |
+| Add places | `app/trip/pick.js` | Search the guide and add or remove places on a chosen day. Adding a place also saves it. |
 
-Two modals sit on top of these screens. They are not separate routes.
+Modals, not extra routes:
 
-- **Filter modal** (`components/FilterModal.js`) filters Explore by category and region.
-- **Confirm modal** (`components/ConfirmModal.js`) asks before a trail is removed from the shortlist.
+- **Filter modal** on Explore.
+- **Confirm modal** before a shortlist removal or a trip deletion.
+- **Trip picker** on a place, when you add it to a weekend you already created.
 
 ## React Native components
 
@@ -41,28 +45,33 @@ Two modals sit on top of these screens. They are not separate routes.
 | `View` | Screen shells, cards, the filter sheet, the confirm dialog, fact rows, and the resume banner. |
 | `Text` | Titles, the hard-coded trail copy, filter chips, empty states, and the AppState banner. |
 | `Image` | Thumbnail on every card (`components/PlaceCard.js`) and the hero on the detail screen. Files live in `assets/places/`. |
-| `Pressable` | Opening a trail, saving, removing, applying a filter, dismissing the banner, going back, and scheduling a reminder. |
-| `FlatList` | Explore renders the hard-coded `places` array. Favorites renders the same records after they have been saved. |
-| `Modal` | Filter sheet on Explore, and the remove confirmation on Explore, Favorites, and the detail screen. Android back dismisses them through `onRequestClose`. |
-| `AppState` | `context/PlacesContext.js`. The listener treats a change from `inactive` or `background` into `active` as a return to the app. |
-| `ScrollView` | Detail screen and Trail log, so the longer copy can move. |
+| `TextInput` | Search on Explore and on Add places. Trip name, note, and the note on an existing trip. |
+| `Pressable` | Saving, filtering, sorting, creating a trip, moving a place between days, ticking the checklist, and sending a reminder. |
+| `FlatList` | Explore, Trips, Shortlist, and Add places. |
+| `Modal` | Filter sheet, remove confirmation, and the “add to a trip” sheet. Android back dismisses them through `onRequestClose`. |
+| `AppState` | `context/PlacesContext.js`. A change from `inactive` or `background` into `active` shows a banner naming the current trip or the shortlist. |
+| `ScrollView` | Place, new trip, and trip plan. |
 
-Shared state uses `useState` inside `PlacesProvider`. Screens read it with the `usePlaces()` hook, which is why a favorite added on one screen is already on the others. The values are the shortlist ids, the active category, the active region, the resume banner text, and the resume log. Nothing is written to disk: leaving the app with the Home button keeps the state, which is what the AppState demo needs; force-quitting the process clears it.
+Shared state is `useState` inside `PlacesProvider`. Every screen reads it with `usePlaces()`, so a place saved on Explore is already on Shortlist, and a place added on the trip plan changes the cost on the Trips tab. Nothing is written to disk: Home and return keeps it; force-quitting clears it.
 
 ## Expo Router layout
 
-File-based routes live in `app/`. The root is a stack. The three tabs are a nested layout, and the detail screen is a stack screen beside the tabs, so the header back button returns to the tab you came from.
+File-based routes live in `app/`. The root is a stack. Explore, Trips, and Shortlist are a nested tab layout. Place, new trip, trip plan, and add-places sit on the stack beside the tabs, so the header back button returns to the tab you came from.
 
 ```
 app/
   _layout.js            Root stack. Wraps the app in PlacesProvider.
   (tabs)/
-    _layout.js          Tab navigator: Explore, Favorites, Trail log.
+    _layout.js          Tabs: Explore, Trips, Shortlist.
     index.js            Explore
-    favorites.js        Favorites
-    log.js              Trail log
+    trips.js            Trips
+    favorites.js        Shortlist
   place/
-    [id].js             Detail stack screen, for example /place/sigiriya
+    [id].js             Place, for example /place/sigiriya
+  trip/
+    new.js              New trip
+    [id].js             Trip plan
+    pick.js             Add places, opened with ?tripId=
 ```
 
 `package.json` sets `"main": "expo-router/entry"`. `app.json` registers the `expo-router` plugin and the `ceylontrails` scheme.
@@ -75,23 +84,20 @@ I followed the current `expo-notifications` guide for Expo SDK 58 rather than th
 
 What the code does, in `lib/notifications.js`:
 
-1. `setNotificationHandler` tells the OS to show a banner, keep the notification in the list, and play a sound while the app is open. Without this handler a scheduled notification can fire and still not appear.
-2. On Android, `setNotificationChannelAsync` creates a channel named Ceylon Trails. Android 8 and later drop notifications that have no channel.
-3. `getPermissionsAsync` / `requestPermissionsAsync` ask before the first schedule. iOS and Android 13 will not show anything until that permission is granted.
-4. Saving a trail calls `scheduleNotificationAsync` with `trigger: null`, which this SDK defines as “deliver now”.
-5. “Remind me in 5 seconds” uses a time-interval trigger:
+1. `setNotificationHandler` tells the OS to show a banner, keep the notification in the list, and play a sound while the app is open.
+2. `getPermissionsAsync` / `requestPermissionsAsync` run before the first schedule.
+3. The reminder uses a time-interval trigger of a few seconds, so you can leave the app and still see it arrive:
 
 ```js
 {
   type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
   seconds: 5,
-  channelId: 'trails',
 }
 ```
 
-The same helper is used from Explore (immediate, on save), the detail screen (immediate on save, and the 5-second reminder), and Trail log (the 5-second reminder, aimed at whatever you saved first, or Sigiriya if the shortlist is empty).
+`setNotificationChannelAsync` is intentionally not called. On Android Expo Go that method throws `ExpoNotificationChannelManager.setNotificationChannelAsync` with a `NullPointerException`, which was taking down the screen. Scheduling uses the default channel, and any failure is caught and shown as text on the place or the trip instead of a red error.
 
-Web has no system notification tray, so the helpers refuse to schedule there and the screen tells you to use Expo Go. Record the notification part of the demo on a phone.
+Saving a place and **Send a leave reminder** / **Remind me about this trip** both go through this helper. Record the notification on a phone. The browser has no notification tray.
 
 ## How to run it
 
@@ -115,8 +121,8 @@ Then:
 
 1. Install **Expo Go** on your phone and update it so it supports SDK 58.
 2. Scan the QR code from the terminal. Phone and computer need to be on the same network.
-3. When the app asks, allow notifications. Saving a place, or tapping **Remind me in 5 seconds**, is the notification demo.
-4. For AppState, press Home (or switch apps), wait a moment, and open Ceylon Trails again. A banner appears on the current screen, and Trail log gains a timestamp.
+3. When the app asks, allow notifications. Save a place, or open a trip and tap **Remind me about this trip**.
+4. For AppState, press Home, then open Ceylon Trails again. A banner on the current screen names the trip or the shortlist.
 
 `npm run web` opens a browser build. Use it to click through tabs, filters, and the shortlist. The browser will not show a real notification or a reliable background/foreground event.
 
@@ -124,13 +130,13 @@ Then:
 
 The marker asked for a screen recording, which you are adding yourself. A suggested order:
 
-1. Scroll Explore and read out a few real values (name, region, time from Kelaniya).
-2. Open the filter modal, choose Wildlife or Hill Country, and show the list shrink.
-3. Open a detail screen and use Back.
-4. Save a place, then open Favorites and show the same place, including the tab badge.
-5. Remove it and cancel once, then confirm, so the modal is visible.
-6. On Trail log, press Home and return. Show the banner and the new timestamp.
-7. Tap **Remind me in 5 seconds**, leave the app, and show the notification arriving.
+1. Search Explore, then filter to Wildlife or Hill Country, and read a few real values.
+2. Open a place, save it, and show it on Shortlist with the tab badge.
+3. Plan a weekend: name, Saturday, length. Add two places and move one to day 2.
+4. Show the cost change, and tick a checklist row.
+5. Remove a shortlist place and cancel once, then confirm, so the modal is visible.
+6. Press Home and come back. Show the welcome banner.
+7. Tap **Remind me about this trip**, leave the app, and show the notification.
 8. Paste the public link into **Video link** at the top of this file and push that change to `main`.
 
 ## Data and photographs

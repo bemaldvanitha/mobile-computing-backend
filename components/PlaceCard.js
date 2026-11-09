@@ -1,7 +1,7 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme/colors';
 
-export function PlaceCard({ place, saved, onOpen, onSave, onRemove }) {
+export function PlaceCard({ place, saved, onOpen, onSave, onRemove, note }) {
   return (
     <View style={styles.card}>
       <Pressable onPress={onOpen} style={styles.main} accessibilityRole="button">
@@ -14,6 +14,7 @@ export function PlaceCard({ place, saved, onOpen, onSave, onRemove }) {
           <Text style={styles.summary} numberOfLines={3}>
             {place.summary}
           </Text>
+          {note ? <Text style={styles.note}>{note}</Text> : null}
         </View>
       </Pressable>
       <View style={styles.actionRow}>
@@ -73,6 +74,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
+    marginTop: 6,
+  },
+  note: {
+    color: colors.greenDark,
+    fontSize: 13,
+    fontWeight: '600',
     marginTop: 6,
   },
   actionRow: {
