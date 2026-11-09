@@ -5,8 +5,7 @@ import { ConfirmModal } from '../../components/ConfirmModal';
 import { ResumeBanner } from '../../components/ResumeBanner';
 import { usePlaces } from '../../context/PlacesContext';
 import { costFor } from '../../data/costs';
-import { findPlace } from '../../data/places';
-import { sendReminder } from '../../lib/notifications';
+import { findPlace, origin } from '../../data/places';
 import { formatLkr, hoursFor } from '../../lib/plan';
 import { colors } from '../../theme/colors';
 
@@ -42,39 +41,16 @@ export default function PlaceDetailScreen() {
   const cost = costFor(place.id);
   const usedIn = tripsForPlace(place.id);
 
-  async function save() {
+  function save() {
     addFavorite(place.id);
-    const result = await sendReminder({
-      title: `${place.name} saved`,
-      body: place.fromKelaniya,
-      seconds: 2,
-    });
-    setNotice(
-      result.ok
-        ? `${place.name} is on your shortlist, and a short reminder was sent to this phone.`
-        : `${place.name} is on your shortlist. ${result.reason}`
-    );
-  }
-
-  async function remind() {
-    const result = await sendReminder({
-      title: `Leave for ${place.name}`,
-      body: `${place.bestTime} Bus fare from Kelaniya is about ${formatLkr(cost.busLkr)}.`,
-      seconds: 5,
-    });
-    setNotice(
-      result.ok
-        ? `Leave reminder set for ${place.name}. It will arrive on this phone in a few seconds.`
-        : result.reason
-    );
+    setNotice(`${place.name} is on your shortlist. The shortlist is a wishlist, separate from any trip.`);
   }
 
   function addTo(tripId) {
     addStop(tripId, place.id, 1);
-    addFavorite(place.id);
     setPickingTrip(false);
     const trip = trips.find((item) => item.id === tripId);
-    setNotice(`${place.name} was added to ${trip?.name ?? 'the trip'} on day 1.`);
+    setNotice(`${place.name} was added to ${trip?.name ?? 'the trip'} on day 1. It was not added to the shortlist.`);
   }
 
   return (
@@ -84,11 +60,11 @@ export default function PlaceDetailScreen() {
       <ResumeBanner />
       <View style={styles.body}>
         <Text style={styles.meta}>
-          {place.region} · {place.category} · {hoursFor(place.id)} h from Kelaniya
+          {place.region} · {place.category} · {hoursFor(place.id)} h from {origin}
         </Text>
         <Text style={styles.summary}>{place.summary}</Text>
         <Text style={styles.about}>{place.about}</Text>
-        <Fact label="From Kelaniya" value={place.fromKelaniya} />
+        <Fact label={`From ${origin}`} value={place.fromOrigin} />
         <Fact label="When to go" value={place.bestTime} />
         <Fact label="How long there" value={place.visitLength} />
         <Fact label="On the day" value={place.tip} />
@@ -115,7 +91,7 @@ export default function PlaceDetailScreen() {
         <Pressable
           onPress={() => {
             if (trips.length === 0) {
-              router.push(`/trip/new?placeId=${place.id}`);
+              router.push('/trip/new');
               return;
             }
             setPickingTrip(true);
@@ -124,12 +100,6 @@ export default function PlaceDetailScreen() {
           accessibilityRole="button"
         >
           <Text style={styles.primaryText}>Add to a trip</Text>
-        </Pressable>
-        <Pressable onPress={remind} style={styles.secondary} accessibilityRole="button">
-          <Text style={styles.secondaryText}>Send a leave reminder</Text>
-        </Pressable>
-        <Pressable onPress={() => router.back()} style={styles.textButton} accessibilityRole="button">
-          <Text style={styles.backLink}>Back</Text>
         </Pressable>
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       </View>
@@ -169,7 +139,7 @@ export default function PlaceDetailScreen() {
             <Pressable
               onPress={() => {
                 setPickingTrip(false);
-                router.push(`/trip/new?placeId=${place.id}`);
+                router.push('/trip/new');
               }}
               style={styles.secondary}
               accessibilityRole="button"

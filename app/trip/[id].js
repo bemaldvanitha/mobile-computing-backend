@@ -4,8 +4,10 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { usePlaces } from '../../context/PlacesContext';
 import { findPlace } from '../../data/places';
+import { visibleChecks } from '../../lib/checklist';
 import { sendReminder } from '../../lib/notifications';
-import { budgetFor, formatLkr, formatRange } from '../../lib/plan';
+import { budgetFor, formatLkr, formatRange, groupSizeOf } from '../../lib/plan';
+import { assessRoute } from '../../lib/routes';
 import { colors } from '../../theme/colors';
 
 const DAY_OPTIONS = [1, 2, 3];
@@ -13,11 +15,22 @@ const DAY_OPTIONS = [1, 2, 3];
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams();
   const tripId = Array.isArray(id) ? id[0] : id;
-  const { getTrip, setTripNote, setTripDays, setStopDay, removeStop, toggleCheck, deleteTrip } =
-    usePlaces();
+  const {
+    getTrip,
+    setTripNote,
+    setTripDays,
+    setStopDay,
+    removeStop,
+    toggleCheck,
+    addCheck,
+    removeCheck,
+    deleteTrip,
+    setGroupSize,
+  } = usePlaces();
   const trip = getTrip(tripId);
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState('');
+  const [task, setTask] = useState('');
 
   if (!trip) {
     return (
@@ -32,13 +45,10 @@ export default function TripDetailScreen() {
   }
 
   const budget = budgetFor(trip);
-  const checks = [
-    { key: 'bus', label: 'Bus or train is booked' },
-    { key: 'cash', label: 'Cash is drawn for tickets' },
-    { key: 'time', label: 'The leave time fits the gate opening' },
-    ...(trip.days > 1 ? [{ key: 'bed', label: 'A bed is booked' }] : []),
-  ];
-  const done = checks.filter((item) => trip.checks[item.key]).length;
+  const verdict = assessRoute(trip.stops, trip.days);
+  const group = groupSizeOf(trip);
+  const checks = visibleChecks(trip);
+  const done = checks.filter((item) => item.done).length;
 
   async function remind() {
     const placeNames = trip.stops
@@ -61,10 +71,44 @@ export default function TripDetailScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: trip.name }} />
       <Text style={styles.range}>{formatRange(trip.startDate, trip.days)}</Text>
-      <Text style={styles.total}>{formatLkr(budget.total)} per person</Text>
+      <Text style={styles.total}>{formatLkr(budget.total)} each</Text>
       <Text style={styles.split}>
         Tickets and extras {formatLkr(budget.tickets)} · Bus {formatLkr(budget.bus)}
-        {budget.nights > 0 ? ` · ${budget.nights} night stay ${formatLkr(budget.lodging)}` : ' · no overnight stay'}
+        {budget.nights > 0 ? ` · room share ${formatLkr(budget.lodging)}` : ' · no overnight stay'}
+        {` · ${formatLkr(budget.groupTotal)} for ${group}`}
+      </Text>
+      <View
+        style={[
+          styles.verdict,
+          verdict.level === 'good' && styles.verdictGood,
+          verdict.level === 'tight' && styles.verdictTight,
+          verdict.level === 'bad' && styles.verdictBad,
+        ]}
+      >
+        <Text style={styles.verdictTitle}>{verdict.title}</Text>
+        <Text style={styles.verdictDetail}>{verdict.detail}</Text>
+      </View>
+      <Text style={styles.section}>People going</Text>
+      <View style={styles.stepper}>
+        <Pressable
+          onPress={() => setGroupSize(trip.id, group - 1)}
+          style={styles.stepButton}
+          accessibilityRole="button"
+        >
+          <Text style={styles.stepButtonText}>−</Text>
+        </Pressable>
+        <Text style={styles.stepValue}>{group}</Text>
+        <Pressable
+          onPress={() => setGroupSize(trip.id, group + 1)}
+          style={styles.stepButton}
+          accessibilityRole="button"
+        >
+          <Text style={styles.stepButtonText}>+</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.split}>
+        The room is split by this number. On a Yala, Udawalawe, or Minneriya trip the Rs 10,000 jeep
+        is split the same way.
       </Text>
       <Text style={styles.section}>Length</Text>
       <View style={styles.chips}>
@@ -140,22 +184,47 @@ export default function TripDetailScreen() {
       <Text style={styles.section}>
         Before you leave · {done}/{checks.length}
       </Text>
-      {checks.map((item) => {
-        const on = trip.checks[item.key];
-        return (
+      <Text style={styles.split}>
+        These follow the places on this trip. Tick what is done, or add a task of your own.
+      </Text>
+      {checks.map((item) => (
+        <View key={item.id} style={styles.check}>
           <Pressable
-            key={item.key}
-            onPress={() => toggleCheck(trip.id, item.key)}
-            style={styles.check}
+            onPress={() => toggleCheck(trip.id, item)}
+            style={styles.checkMain}
             accessibilityRole="button"
           >
-            <View style={[styles.box, on && styles.boxOn]}>
-              {on ? <Text style={styles.tick}>✓</Text> : null}
+            <View style={[styles.box, item.done && styles.boxOn]}>
+              {item.done ? <Text style={styles.tick}>✓</Text> : null}
             </View>
-            <Text style={[styles.checkLabel, on && styles.checkDone]}>{item.label}</Text>
+            <Text style={[styles.checkLabel, item.done && styles.checkDone]}>{item.label}</Text>
           </Pressable>
-        );
-      })}
+          {item.custom ? (
+            <Pressable onPress={() => removeCheck(trip.id, item.id)} accessibilityRole="button">
+              <Text style={styles.remove}>Remove</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ))}
+      <View style={styles.addTask}>
+        <TextInput
+          value={task}
+          onChangeText={setTask}
+          placeholder="Add a task, such as who is bringing water"
+          placeholderTextColor={colors.muted}
+          style={styles.taskInput}
+        />
+        <Pressable
+          onPress={() => {
+            addCheck(trip.id, task);
+            setTask('');
+          }}
+          style={styles.addTaskButton}
+          accessibilityRole="button"
+        >
+          <Text style={styles.addTaskText}>Add</Text>
+        </Pressable>
+      </View>
       <Text style={styles.section}>Note</Text>
       <TextInput
         value={trip.note}
@@ -213,6 +282,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: 6,
+  },
+  verdict: {
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 14,
+  },
+  verdictGood: {
+    backgroundColor: '#E3EFE6',
+  },
+  verdictTight: {
+    backgroundColor: colors.banner,
+  },
+  verdictBad: {
+    backgroundColor: '#F6E4E0',
+  },
+  verdictTitle: {
+    color: colors.ink,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  verdictDetail: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 10,
+  },
+  stepButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepButtonText: {
+    color: colors.paper,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 28,
+  },
+  stepValue: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '700',
+    minWidth: 24,
+    textAlign: 'center',
   },
   section: {
     color: colors.ink,
@@ -316,8 +437,40 @@ const styles = StyleSheet.create({
   check: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
     marginTop: 12,
+  },
+  checkMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  addTask: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  taskInput: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.ink,
+    fontSize: 15,
+  },
+  addTaskButton: {
+    backgroundColor: colors.green,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  addTaskText: {
+    color: colors.paper,
+    fontWeight: '700',
   },
   box: {
     width: 24,

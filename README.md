@@ -12,11 +12,11 @@
 
 ## What this application is
 
-**Ceylon Trails** is a weekend planner for ten Sri Lankan places you can actually reach from the University of Kelaniya. A saved name is not a plan. The app keeps a shortlist, then lets you put places on a dated trip, move them between days, tick off what is booked, and see a per-person cost that changes when the plan changes.
+**Ceylon Trails** is a weekend planner for thirty Sri Lankan places you can actually reach from Colombo. A saved name is not a plan. The shortlist is a wishlist only. A trip is a separate list you build on purpose, then tick off before you leave.
 
-Each place is hard-coded with a region, category, travel time, season, ticket, typical extra, and a bus fare from Kelaniya. Costs live in `data/costs.js`. The trip total in `lib/plan.js` adds tickets and extras, uses the single furthest bus fare, and adds Rs 6,500 a night when the trip is longer than a day.
+Each place is hard-coded with a region, category, travel time, season, ticket, typical extra, and a bus fare from Colombo. Costs live in `data/costs.js`. The trip total in `lib/plan.js` adds tickets and extras, uses the single furthest bus fare, and splits one room (Rs 8,000 a night, plus Rs 1,500 for each person beyond two) across the group. A Yala, Udawalawe, or Minneriya jeep is Rs 10,000 for the vehicle, also split by the group.
 
-Saving a place, or asking for a leave reminder, schedules a local notification. Returning from the background shows a banner that names the trip you were planning, which is the `AppState` behaviour.
+A notification is sent only when a trip is created, and again if you tap **Remind me about this trip**. Saving a place does not notify. Returning from the background shows a banner that names the trip you were planning, which is the `AppState` behaviour.
 
 ## Screens
 
@@ -24,13 +24,13 @@ There are seven screens.
 
 | Screen | Route | Purpose |
 | --- | --- | --- |
-| Explore | `app/(tabs)/index.js` | Search the ten places, filter by category and region, sort by travel time, and save to the shortlist. |
+| Explore | `app/(tabs)/index.js` | Search the thirty places, filter by category and region, sort by travel time, and save to the shortlist. |
 | Trips | `app/(tabs)/trips.js` | Lists weekends you have created, with dates, places, and the calculated cost. |
 | Shortlist | `app/(tabs)/favorites.js` | Places saved from Explore. Removing one asks for confirmation. The tab badge is the count. |
-| Place | `app/place/[id].js` | Full description, money, save, add to an existing trip or start a new one, and a leave reminder. |
-| New trip | `app/trip/new.js` | Name, a real upcoming Saturday, length of 1–3 days, and a note. A place can be attached on day 1. |
-| Trip plan | `app/trip/[id].js` | Move places between days, edit the length, tick the leaving checklist, edit the note, see the budget, send a reminder, or delete the trip. |
-| Add places | `app/trip/pick.js` | Search the guide and add or remove places on a chosen day. Adding a place also saves it. |
+| Place | `app/place/[id].js` | Full description, money, save to the wishlist, or add to an existing trip. Starting a new trip opens the three-step builder at step 1. |
+| Build a route | `app/trip/new.js` | Three steps every time: direction, length and Saturday, then a suggestion. Stops are added with a button. **Create trip** opens the trip you just made. |
+| Trip plan | `app/trip/[id].js` | Move places between days, edit the length, tick a checklist that follows those places, add your own tasks, edit the note, see the budget, send a reminder, or delete the trip. |
+| Add places | `app/trip/pick.js` | Search the guide and add or remove places on a chosen day. Adding a place does not put it on the shortlist. |
 
 Modals, not extra routes:
 
@@ -76,7 +76,7 @@ app/
 
 `package.json` sets `"main": "expo-router/entry"`. `app.json` registers the `expo-router` plugin and the `ceylontrails` scheme.
 
-Back navigation is the stack header arrow plus a Back pressable on the detail screen (`router.back()`). Filter and confirm modals dismiss with their buttons and with the Android back gesture (`onRequestClose`).
+Back navigation is the stack header chevron. On the route builder the same chevron steps back through the three steps, and leaves the builder from step 1. Filter and confirm modals dismiss with their buttons and with the Android back gesture (`onRequestClose`).
 
 ## Local notifications
 
@@ -95,9 +95,9 @@ What the code does, in `lib/notifications.js`:
 }
 ```
 
-`setNotificationChannelAsync` is intentionally not called. On Android Expo Go that method throws `ExpoNotificationChannelManager.setNotificationChannelAsync` with a `NullPointerException`, which was taking down the screen. Scheduling uses the default channel, and any failure is caught and shown as text on the place or the trip instead of a red error.
+`setNotificationChannelAsync` is intentionally not called. On Android Expo Go that method throws `ExpoNotificationChannelManager.setNotificationChannelAsync` with a `NullPointerException`, which was taking down the screen. Scheduling uses the default channel, and any failure is caught and shown as text on the trip instead of a red error.
 
-Saving a place and **Send a leave reminder** / **Remind me about this trip** both go through this helper. Record the notification on a phone. The browser has no notification tray.
+**Create trip** and **Remind me about this trip** are the only buttons that schedule a notification. Record that notification on a phone. The browser has no notification tray.
 
 ## How to run it
 
@@ -121,7 +121,7 @@ Then:
 
 1. Install **Expo Go** on your phone and update it so it supports SDK 58.
 2. Scan the QR code from the terminal. Phone and computer need to be on the same network.
-3. When the app asks, allow notifications. Save a place, or open a trip and tap **Remind me about this trip**.
+3. When the app asks, allow notifications. Create a trip, or open one and tap **Remind me about this trip**.
 4. For AppState, press Home, then open Ceylon Trails again. A banner on the current screen names the trip or the shortlist.
 
 `npm run web` opens a browser build. Use it to click through tabs, filters, and the shortlist. The browser will not show a real notification or a reliable background/foreground event.
@@ -132,7 +132,7 @@ The marker asked for a screen recording, which you are adding yourself. A sugges
 
 1. Search Explore, then filter to Wildlife or Hill Country, and read a few real values.
 2. Open a place, save it, and show it on Shortlist with the tab badge.
-3. Plan a weekend: name, Saturday, length. Add two places and move one to day 2.
+3. Plan a weekend through all three steps. Add the suggested stops with the button, create the trip, and show that you land on that trip. Move one place to day 2.
 4. Show the cost change, and tick a checklist row.
 5. Remove a shortlist place and cancel once, then confirm, so the modal is visible.
 6. Press Home and come back. Show the welcome banner.

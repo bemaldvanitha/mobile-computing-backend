@@ -4,6 +4,7 @@ import { ResumeBanner } from '../../components/ResumeBanner';
 import { usePlaces } from '../../context/PlacesContext';
 import { findPlace } from '../../data/places';
 import { budgetFor, formatLkr, formatRange } from '../../lib/plan';
+import { assessRoute } from '../../lib/routes';
 import { colors } from '../../theme/colors';
 
 export default function TripsScreen() {
@@ -21,24 +22,25 @@ export default function TripsScreen() {
             <View style={styles.intro}>
               <Text style={styles.title}>Trips</Text>
               <Text style={styles.lede}>
-                A trip has a Saturday, a length, and the places you actually intend to reach. The
-                cost updates as you add them.
+                Build a route from a direction and the days you really have. The app tells you if
+                it fits, when to leave Colombo, and what the group pays.
               </Text>
               <Pressable
                 onPress={() => router.push('/trip/new')}
                 style={styles.primary}
                 accessibilityRole="button"
               >
-                <Text style={styles.primaryText}>Plan a weekend</Text>
+                <Text style={styles.primaryText}>Build a route</Text>
               </Pressable>
             </View>
           </View>
         }
         ListEmptyComponent={
-          <Text style={styles.empty}>No weekends yet. Plan one, then add places from Explore.</Text>
+          <Text style={styles.empty}>No routes yet. Build one from the south coast, the hills, or your shortlist.</Text>
         }
         renderItem={({ item }) => {
           const budget = budgetFor(item);
+          const verdict = assessRoute(item.stops, item.days);
           const names = item.stops
             .map((stop) => findPlace(stop.placeId)?.name)
             .filter(Boolean)
@@ -54,7 +56,9 @@ export default function TripsScreen() {
                 {formatRange(item.startDate, item.days)} · {item.days === 1 ? 'Day trip' : `${item.days} days`}
               </Text>
               <Text style={styles.places}>{names || 'No places added yet'}</Text>
-              <Text style={styles.cost}>{formatLkr(budget.total)}</Text>
+              <Text style={styles.cost}>
+                {formatLkr(budget.total)} each · {verdict.title}
+              </Text>
             </Pressable>
           );
         }}

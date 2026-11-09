@@ -48,7 +48,10 @@ export default function PickPlacesScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.lead}>Choose a day, then add a place. Adding it also saves it to the shortlist.</Text>
+            <Text style={styles.lead}>
+              Choose a day, then add a place. This does not touch the shortlist. The shortlist is only
+              the places you save on purpose.
+            </Text>
             <View style={styles.chips}>
               {Array.from({ length: trip.days }, (_, index) => index + 1).map((option) => {
                 const selected = option === activeDay;
@@ -67,7 +70,7 @@ export default function PickPlacesScreen() {
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Search the ten places"
+              placeholder="Search all thirty places"
               placeholderTextColor={colors.muted}
               style={styles.search}
               autoCorrect={false}

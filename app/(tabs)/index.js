@@ -6,8 +6,8 @@ import { FilterModal } from '../../components/FilterModal';
 import { PlaceCard } from '../../components/PlaceCard';
 import { ResumeBanner } from '../../components/ResumeBanner';
 import { usePlaces } from '../../context/PlacesContext';
+import { origin } from '../../data/places';
 import { hoursFor } from '../../lib/plan';
-import { sendReminder } from '../../lib/notifications';
 import { colors } from '../../theme/colors';
 
 export default function ExploreScreen() {
@@ -49,18 +49,9 @@ export default function ExploreScreen() {
       ? 'All regions'
       : [category, region].filter((item) => item !== 'All').join(' · ');
 
-  async function savePlace(place) {
+  function savePlace(place) {
     addFavorite(place.id);
-    const result = await sendReminder({
-      title: `${place.name} saved`,
-      body: `${place.fromKelaniya} Open Shortlist when you are ready to put it on a trip.`,
-      seconds: 2,
-    });
-    setNotice(
-      result.ok
-        ? `${place.name} is on your shortlist. A reminder is on its way.`
-        : `${place.name} is on your shortlist. ${result.reason}`
-    );
+    setNotice(`${place.name} is on your shortlist. Saving a place does not start a trip.`);
   }
 
   return (
@@ -73,11 +64,11 @@ export default function ExploreScreen() {
         ListHeaderComponent={
           <View style={styles.intro}>
             <ResumeBanner />
-            <Text style={styles.kicker}>From Kelaniya</Text>
+            <Text style={styles.kicker}>From {origin}</Text>
             <Text style={styles.title}>Ceylon Trails</Text>
             <Text style={styles.lede}>
-              Search ten places, save the ones you mean, then build a weekend with a date and a
-              cost.
+              Search thirty places, save the ones you want, then walk through the three steps to
+              build a weekend.
             </Text>
             <TextInput
               value={query}
@@ -124,7 +115,7 @@ export default function ExploreScreen() {
               note={
                 usedIn.length > 0
                   ? `On ${usedIn.length === 1 ? usedIn[0].name : `${usedIn.length} trips`}`
-                  : `${hoursFor(item.id)} h from Kelaniya`
+                  : `${hoursFor(item.id)} h from ${origin}`
               }
               onOpen={() => router.push(`/place/${item.id}`)}
               onSave={() => savePlace(item)}

@@ -4,10 +4,6 @@ import { places } from '../data/places';
 
 const PlacesContext = createContext(null);
 
-function blankChecks() {
-  return { bus: false, cash: false, time: false, bed: false };
-}
-
 export function PlacesProvider({ children }) {
   const [favoriteIds, setFavoriteIds] = useState([]);
   const [category, setCategory] = useState('All');
@@ -72,21 +68,28 @@ export function PlacesProvider({ children }) {
       trips,
       getTrip: (id) => trips.find((trip) => trip.id === id) ?? null,
       tripsForPlace: (placeId) => trips.filter((trip) => trip.stops.some((stop) => stop.placeId === placeId)),
-      createTrip: ({ name, startDate, days, note, placeId }) => {
+      createTrip: ({ name, startDate, days, note, placeId, stops, groupSize }) => {
+        const routeStops = stops?.length
+          ? stops.map((stop) => ({ placeId: stop.placeId, day: stop.day }))
+          : placeId
+            ? [{ placeId, day: 1 }]
+            : [];
         const trip = {
           id: `trip-${Date.now()}`,
           name: name.trim(),
           startDate,
           days,
-          note: note.trim(),
-          stops: placeId ? [{ placeId, day: 1 }] : [],
-          checks: blankChecks(),
+          note: (note ?? '').trim(),
+          stops: routeStops,
+          groupSize: Math.min(6, Math.max(1, groupSize || 2)),
+          checks: [],
         };
-        if (placeId) {
-          setFavoriteIds((current) => (current.includes(placeId) ? current : [...current, placeId]));
-        }
         setTrips((current) => [trip, ...current]);
         return trip;
+      },
+      setGroupSize: (id, groupSize) => {
+        const size = Math.min(6, Math.max(1, groupSize));
+        setTrips((current) => current.map((trip) => (trip.id === id ? { ...trip, groupSize: size } : trip)));
       },
       deleteTrip: (id) => {
         setTrips((current) => current.filter((trip) => trip.id !== id));
@@ -109,7 +112,6 @@ export function PlacesProvider({ children }) {
         );
       },
       addStop: (tripId, placeId, day) => {
-        setFavoriteIds((current) => (current.includes(placeId) ? current : [...current, placeId]));
         setTrips((current) =>
           current.map((trip) => {
             if (trip.id !== tripId || trip.stops.some((stop) => stop.placeId === placeId)) {
@@ -147,11 +149,50 @@ export function PlacesProvider({ children }) {
           )
         );
       },
-      toggleCheck: (tripId, key) => {
+      toggleCheck: (tripId, item) => {
+        setTrips((current) =>
+          current.map((trip) => {
+            if (trip.id !== tripId) {
+              return trip;
+            }
+            const checks = Array.isArray(trip.checks) ? [...trip.checks] : [];
+            const index = checks.findIndex((entry) => entry.id === item.id);
+            if (index === -1) {
+              checks.push({ id: item.id, label: item.label, done: true, custom: Boolean(item.custom) });
+            } else {
+              checks[index] = { ...checks[index], done: !checks[index].done };
+            }
+            return { ...trip, checks };
+          })
+        );
+      },
+      addCheck: (tripId, label) => {
+        const text = label.trim();
+        if (!text) {
+          return;
+        }
         setTrips((current) =>
           current.map((trip) =>
             trip.id === tripId
-              ? { ...trip, checks: { ...trip.checks, [key]: !trip.checks[key] } }
+              ? {
+                  ...trip,
+                  checks: [
+                    ...(Array.isArray(trip.checks) ? trip.checks : []),
+                    { id: `custom-${Date.now()}`, label: text, done: false, custom: true },
+                  ],
+                }
+              : trip
+          )
+        );
+      },
+      removeCheck: (tripId, checkId) => {
+        setTrips((current) =>
+          current.map((trip) =>
+            trip.id === tripId
+              ? {
+                  ...trip,
+                  checks: (Array.isArray(trip.checks) ? trip.checks : []).filter((entry) => entry.id !== checkId),
+                }
               : trip
           )
         );

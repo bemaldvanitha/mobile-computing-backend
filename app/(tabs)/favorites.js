@@ -23,16 +23,18 @@ export default function FavoritesScreen() {
             <View style={styles.intro}>
               <Text style={styles.title}>Shortlist</Text>
               <Text style={styles.lede}>
-                Places you have saved. Open one to put it on a dated trip, or start the trip from
-                here.
+                Places you have saved. Open one to add it to a route, or build the whole weekend
+                from this list.
               </Text>
-              <Pressable
-                onPress={() => router.push('/trip/new')}
-                style={styles.link}
-                accessibilityRole="button"
-              >
-                <Text style={styles.linkText}>Plan a weekend from this list</Text>
-              </Pressable>
+              {favorites.length > 0 ? (
+                <Pressable
+                  onPress={() => router.push('/trip/new')}
+                  style={styles.link}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.linkText}>Build a route from this list</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         }
