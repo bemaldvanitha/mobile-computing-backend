@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { usePlaces } from '../../context/PlacesContext';
@@ -69,7 +70,22 @@ export default function TripDetailScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: trip.name }} />
+      <Stack.Screen
+        options={{
+          title: trip.name,
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.dismissTo('/')}
+              accessibilityRole="button"
+              accessibilityLabel="Home"
+              style={styles.homeButton}
+            >
+              <Ionicons name="home" size={18} color={colors.paper} />
+              <Text style={styles.homeText}>Home</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <Text style={styles.range}>{formatRange(trip.startDate, trip.days)}</Text>
       <Text style={styles.total}>{formatLkr(budget.total)} each</Text>
       <Text style={styles.split}>
@@ -134,6 +150,7 @@ export default function TripDetailScreen() {
           <Text style={styles.link}>Add</Text>
         </Pressable>
       </View>
+      <Text style={styles.split}>Move a place between day 1, day 2, and day 3. A later day lengthens the trip.</Text>
       {trip.stops.length === 0 ? (
         <Text style={styles.empty}>Add at least one place. The bus fare uses the furthest one.</Text>
       ) : (
@@ -155,7 +172,7 @@ export default function TripDetailScreen() {
                       <Text style={styles.stopMeta}>{place.region}</Text>
                     </Pressable>
                     <View style={styles.stopActions}>
-                      {DAY_OPTIONS.filter((option) => option <= trip.days).map((option) => (
+                      {DAY_OPTIONS.map((option) => (
                         <Pressable
                           key={option}
                           onPress={() => setStopDay(trip.id, place.id, option)}
@@ -163,7 +180,7 @@ export default function TripDetailScreen() {
                           accessibilityRole="button"
                         >
                           <Text style={[styles.miniText, option === stop.day && styles.miniTextOn]}>
-                            D{option}
+                            Day {option}
                           </Text>
                         </Pressable>
                       ))}
@@ -266,6 +283,17 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 48,
+  },
+  homeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingLeft: 8,
+  },
+  homeText: {
+    color: colors.paper,
+    fontWeight: '700',
+    fontSize: 15,
   },
   range: {
     color: colors.gold,
@@ -413,9 +441,9 @@ const styles = StyleSheet.create({
   mini: {
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   miniOn: {
     backgroundColor: colors.green,

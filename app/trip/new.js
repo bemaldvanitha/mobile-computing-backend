@@ -63,6 +63,13 @@ export default function NewTripScreen() {
     setStops((current) => current.filter((stop) => stop.placeId !== id));
   }
 
+  function moveStop(id, day) {
+    setStops((current) => current.map((stop) => (stop.placeId === id ? { ...stop, day } : stop)));
+    if (day > days) {
+      setDays(day);
+    }
+  }
+
   function addStop(id, day = 1) {
     setStops((current) => {
       if (current.some((stop) => stop.placeId === id)) {
@@ -115,7 +122,8 @@ export default function NewTripScreen() {
       body: `${formatRange(trip.startDate, trip.days)}. ${placeNames}.`,
       seconds: 5,
     });
-    router.replace({
+    router.dismissAll();
+    router.push({
       pathname: '/trip/[id]',
       params: { id: trip.id },
     });
@@ -301,15 +309,34 @@ export default function NewTripScreen() {
                     return null;
                   }
                   return (
-                    <View key={stop.placeId} style={styles.stop}>
-                      <Image source={place.image} style={styles.stopImage} />
-                      <View style={styles.stopCopy}>
-                        <Text style={styles.stopName}>{place.name}</Text>
-                        <Text style={styles.stopMeta}>{place.region}</Text>
+                    <View key={stop.placeId} style={styles.chosen}>
+                      <View style={styles.chosenTop}>
+                        <Image source={place.image} style={styles.stopImage} />
+                        <View style={styles.stopCopy}>
+                          <Text style={styles.stopName}>{place.name}</Text>
+                          <Text style={styles.stopMeta}>{place.region}</Text>
+                        </View>
+                        <Pressable onPress={() => removeStop(place.id)} accessibilityRole="button">
+                          <Text style={styles.remove}>Remove</Text>
+                        </Pressable>
                       </View>
-                      <Pressable onPress={() => removeStop(place.id)} accessibilityRole="button">
-                        <Text style={styles.remove}>Remove</Text>
-                      </Pressable>
+                      <View style={styles.dayChoices}>
+                        {[1, 2, 3].map((option) => {
+                          const selected = stop.day === option;
+                          return (
+                            <Pressable
+                              key={option}
+                              onPress={() => moveStop(place.id, option)}
+                              style={[styles.dayChoice, selected && styles.dayChoiceOn]}
+                              accessibilityRole="button"
+                            >
+                              <Text style={[styles.dayChoiceText, selected && styles.dayChoiceTextOn]}>
+                                Day {option}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
                     </View>
                   );
                 })}
@@ -593,6 +620,44 @@ const styles = StyleSheet.create({
   emptyDay: {
     color: colors.muted,
     marginTop: 6,
+  },
+  chosen: {
+    marginTop: 8,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 10,
+  },
+  chosenTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dayChoices: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  dayChoice: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 999,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  dayChoiceOn: {
+    backgroundColor: colors.green,
+    borderColor: colors.green,
+  },
+  dayChoiceText: {
+    color: colors.ink,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  dayChoiceTextOn: {
+    color: colors.paper,
   },
   stop: {
     marginTop: 8,

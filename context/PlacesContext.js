@@ -134,19 +134,20 @@ export function PlacesProvider({ children }) {
         );
       },
       setStopDay: (tripId, placeId, day) => {
+        const nextDay = Math.min(3, Math.max(1, day));
         setTrips((current) =>
-          current.map((trip) =>
-            trip.id === tripId
-              ? {
-                  ...trip,
-                  stops: trip.stops.map((stop) =>
-                    stop.placeId === placeId
-                      ? { ...stop, day: Math.min(Math.max(day, 1), trip.days) }
-                      : stop
-                  ),
-                }
-              : trip
-          )
+          current.map((trip) => {
+            if (trip.id !== tripId) {
+              return trip;
+            }
+            return {
+              ...trip,
+              days: Math.max(trip.days, nextDay),
+              stops: trip.stops.map((stop) =>
+                stop.placeId === placeId ? { ...stop, day: nextDay } : stop
+              ),
+            };
+          })
         );
       },
       toggleCheck: (tripId, item) => {
