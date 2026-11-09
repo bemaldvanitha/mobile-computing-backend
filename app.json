@@ -32,6 +32,16 @@
           "color": "#1F4D3A"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "181a1781-3abd-4d6e-a17a-7289577ee951"
+      }
+    }
   }
 }

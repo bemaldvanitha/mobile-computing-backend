@@ -1,10 +1,9 @@
-**Name:** bemal_dvanitha  
+**Name:** B. D. Vidanagamachchi  
 **Student ID:** MSc-CS-2025-026  
-**Module:** COSC 64173 — Mobile Computing  
-**Assignment:** 01  
+**Module:** COSC 64173 — Mobile Computing, Assignment 01  
 **Department of Statistics & Computer Science, University of Kelaniya**
 
-**Video link:** https://youtube.com/shorts/sN2QHX066ws?si=W8O-HsB6SemRro-Z
+**Demonstration video:** https://youtube.com/shorts/sN2QHX066ws?si=W8O-HsB6SemRro-Z
 
 ## What this application is
 
